@@ -1,9 +1,10 @@
-name: Package decompiled pseudocode
+name: Package Termux ARM64 executable
 
 on:
   push:
     paths:
-      - lib_decompiled_ghidra.cpp
+      - lib
+      - TERMUX.md
       - .github/workflows/decompiled-pseudocode.yml
   workflow_dispatch:
 
@@ -17,22 +18,31 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Validate pseudocode output
+      - name: Validate Android ARM64 executable
         shell: bash
         run: |
           set -euo pipefail
-          test -s lib_decompiled_ghidra.cpp
-          function_count="$(grep -c '^// Address:' lib_decompiled_ghidra.cpp || true)"
-          if [[ "$function_count" -lt 1 ]]; then
-            echo "No decompiled functions were found."
-            exit 1
-          fi
-          echo "Found $function_count decompiled functions. This workflow packages pseudocode; it does not compile C++."
+          test -s lib
+          file lib | grep -q 'ELF 64-bit.*ARM aarch64'
+          readelf -h lib | grep -q 'Machine:.*AArch64'
 
-      - name: Upload pseudocode artifact
+      - name: Package unchanged executable for Termux
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging verify
+          install -m 0755 lib staging/lib
+          cp TERMUX.md staging/README.txt
+          cmp lib staging/lib
+          tar -czf termux-arm64.tar.gz -C staging lib README.txt
+          tar -xzf termux-arm64.tar.gz -C verify
+          cmp lib verify/lib
+          test -x verify/lib
+
+      - name: Upload Termux package
         uses: actions/upload-artifact@v4
         with:
-          name: lib-decompiled-pseudocode
-          path: lib_decompiled_ghidra.cpp
+          name: termux-arm64
+          path: termux-arm64.tar.gz
           if-no-files-found: error
           retention-days: 30
