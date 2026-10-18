@@ -1,0 +1,38 @@
+name: Package decompiled pseudocode
+
+on:
+  push:
+    paths:
+      - lib_decompiled_ghidra.cpp
+      - .github/workflows/decompiled-pseudocode.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate pseudocode output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s lib_decompiled_ghidra.cpp
+          function_count="$(grep -c '^// Address:' lib_decompiled_ghidra.cpp || true)"
+          if [[ "$function_count" -lt 1 ]]; then
+            echo "No decompiled functions were found."
+            exit 1
+          fi
+          echo "Found $function_count decompiled functions. This workflow packages pseudocode; it does not compile C++."
+
+      - name: Upload pseudocode artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lib-decompiled-pseudocode
+          path: lib_decompiled_ghidra.cpp
+          if-no-files-found: error
+          retention-days: 30
